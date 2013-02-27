@@ -9,8 +9,9 @@ import scala.collection.mutable.{ArrayBuffer, HashMap}
 @scala.serializable
 class PigConfig(val name : String, val address : String, val port : Int) {
 	var connected = false
+	var idNumber = -1
 }
-class GameConfig(val size : Int)
+class GameConfig(val size : Int, val messageDelay : Int)
 class Computer(val address : String, pig : PigConfig) {
 	val pigs = ArrayBuffer[PigConfig]()
 	pigs += pig 
@@ -36,6 +37,7 @@ object Config {
 		pigs = p.toArray
 		val m = (json \ "master")
 		master = new MasterConfig( (m \ "address").values.toString,  (m \ "port").values.toString.toInt )
-		game = new MasterConfig( (m \ "boardSize").values.toString.toInt )
+		val g = (json \ "game")
+		game = new GameConfig( (g \ "boardSize").values.toString.toInt, (g \ "messageDelay").values.toString.toInt )
 	}
 }
