@@ -5,6 +5,7 @@ import scala.actors.remote._
 import scala.actors.remote.RemoteActor._
 import scala.collection.mutable.ArrayBuffer
 import scala.actors.AbstractActor
+import scala.util.Random
 
 case class Connect(computer : String)
 case object Nodes
@@ -12,16 +13,18 @@ case object First
 
 class Master extends Actor {
 	val connections = ArrayBuffer[PigConfig]()
+	val pigToCon = HashMap[Int, AbstractActor]()
 	var upConnections = 0
 	var game : Game  = null
+	val rand = new Random
 	def ready : Boolean = (upConnections == Config.N)
 	def getPig(address : String) : PigConfig = {
 		assert(Config.computers.contains(address))
 		val computer = Config.computers(address)
 		val pig = computer.pigs.filter( x => !x.connected ).head
 		pig.connected = true
-		pig.idNumber = connections.size
 		connections += pig
+		pig.idNumber = connections.size
 		pig
 	}
 
@@ -51,16 +54,20 @@ class Master extends Actor {
         		case Ready => {
         			upConnections += 1
         			if(upConnections == Config.N) println("All systems go!")
-        			piggy = select(Node(connections.head.address, connections.head.port), Symbol(connections.head.name))
+        			for(con <- connections) {
+        				pigToCon(con.idNumber) = select(Node(con.address, con.port), Symbol(con.name))
+        			}
         		}
-        		case SendGame(board, hopcount) => {
-        			piggy ! SendGame(board, hopcount)
+        		case SendGame(board) => {
+        			for(piggy <- pigToCon.values)
+        				piggy ! SendGame(board)
         		}
         		case Where => {
-        			sender ! game.landing
+        			sender ! game.landing + rand.nextDouble.round+(-1*rand.nextDouble.round)
         		}
-        		case Hit => {
-        			piggy ! 
+        		case Hit(landing) => {
+        			for(piggy <- pigToCon.values)
+        				piggy ! Hit(landing)
         		}
       		}
     	}

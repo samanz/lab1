@@ -6,7 +6,7 @@ import scala.actors.remote._
 import scala.actors.remote.RemoteActor._
 import scala.util.Random
 
-case class SendGame(board : Array[Int], hopCount : Int)
+case class SendGame(board : Array[Int])
 case class Hit(landing : Int)
 
 class Game(val master : Master) {
@@ -25,7 +25,7 @@ class Game(val master : Master) {
     	randomizeGame()
     	landing = rand.nextInt(Config.game.size)
     	Game.printBoard(board)
-    	(master ! SendGame(board, Config.N))
+    	(master ! SendGame(board)
     	val speed = rand.nextInt(9900) + 100
     	Thread.sleep(speed)
     	(master !? Hit(landing))
