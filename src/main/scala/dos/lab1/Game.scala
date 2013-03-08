@@ -5,32 +5,51 @@ import scala.actors.Actor._
 import scala.actors.remote._
 import scala.actors.remote.RemoteActor._
 import scala.util.Random
+import scala.collection.mutable.HashMap
 
 case class SendGame(board : Array[Int])
 case class Hit(landing : Int)
+case class Final(finalBoard : HashMap[Int,Int])
 
 class Game(val master : Master) {
 	master.game = this
+    var updates = 0
 	val rand = new Random
 	val board = new Array[Int](Config.game.size)
+    val finalBoard = new HashMap[Int, Int]()
 	var landing = -1
     while(!master.ready) { Thread.sleep(1000) }
     println("Starting game")
+    var success = 0
+    var done = false
 
     var round = 0
     var ended = false
     while(true) {
     	round += 1
+        updates = 0
+        success = 0
+        done = false
     	println("Playing round %d".format(round))
     	randomizeGame()
+        loadFinalBoard()
     	landing = rand.nextInt(Config.game.size)
+        println("Will hit location: " + landing)
     	Game.printBoard(board)
-    	(master ! SendGame(board)
+    	(master ! SendGame(board))
     	val speed = rand.nextInt(9900) + 100
+        println("Will hit in: " +speed)
     	Thread.sleep(speed)
-    	(master !? Hit(landing))
-    	println("Game Stats: ")
-    	Thread.sleep(10000)
+        println("Hitting!")
+    	(master ! Hit(landing))
+        println("Waiting for updates!")
+        while(updates != Config.N) Thread.sleep(1000)
+        println("Lets do it!")
+        Game.printBoard(board, finalBoard)
+        (master ! Final(finalBoard))
+        println("Are we done yet?!")
+        while(!done) Thread.sleep(1000)
+    	println("Game Stats: num hit: " + success)
     }
 
     def randomizeGame() {
@@ -56,16 +75,37 @@ class Game(val master : Master) {
     		}
     	}
     }
+
+    def loadFinalBoard() {
+        for(i <- 0 until board.size) {
+            if(board(i) < Config.N+1 && board(i) > 0) finalBoard(board(i)) = i
+        }
+    }
 }
 
 object Game {
 	def printBoard(board : Array[Int]) {
     	println( board.map{ x => 
-    		if(x==0) "_"
+    		if(x==0) "."
     		else if(x==Config.N+1) "[]"
-    		else "."
+    		else "("+x+")" 
     		}.mkString("") )
     }
+
+    def printBoard(board : Array[Int], fb : HashMap[Int,Int]) {
+        fb.foreach( x => println(x._1 +"=>" + x._2))
+        println( board.zipWithIndex.map{ x => 
+            if(x._1==Config.N+1) "[]"
+            else  {
+                if(!fb.values.toSet.contains(x._2)) (".")
+                else {
+                    val as = fb.filter( i => i._2 == x._2 )
+                    ("(" + as.keys.mkString("|") + ")")
+                }
+            } 
+            }.mkString("") )
+    }
+
 
 	def main(args : Array[String]) {
 		RemoteActor.classLoader = getClass().getClassLoader()

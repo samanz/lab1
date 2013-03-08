@@ -3,7 +3,7 @@ import scala.actors.Actor
 import scala.actors.Actor._
 import scala.actors.remote._
 import scala.actors.remote.RemoteActor._
-import scala.collection.mutable.ArrayBuffer
+import scala.collection.mutable.{ArrayBuffer, HashMap}
 import scala.actors.AbstractActor
 import scala.util.Random
 
@@ -66,8 +66,20 @@ class Master extends Actor {
         			sender ! game.landing + rand.nextDouble.round+(-1*rand.nextDouble.round)
         		}
         		case Hit(landing) => {
-        			for(piggy <- pigToCon.values)
-        				piggy ! Hit(landing)
+        			for(piggy <- pigToCon.values) {
+        				val (p : Int,l : Int) = (piggy !? Hit(landing))
+        				game.updates += 1
+        				game.finalBoard(p) = l
+           			}
+        		}
+        		case Done(numHit) => {
+        			game.success = numHit
+        			game.done = true
+        		}
+        		case Final(finalBoard) => {
+        			 for(piggy <- pigToCon.values) {
+        				piggy ! Final(finalBoard)
+           			}
         		}
       		}
     	}
