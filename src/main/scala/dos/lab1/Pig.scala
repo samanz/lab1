@@ -49,9 +49,14 @@ class Pig(val computer : String) extends Actor {
   def simpleWillHitMe(location : Int) : Boolean = {
     if(location < 0 || location >= pigBoard.size) return false
     if(location == myLocation) return true
-    if(pigBoard(location) == stone) {
-      if( (location-1 >= 0 && pigBoard(location-1) != stone && simpleWillHitMe(location-1)) || (location+1 < pigBoard.size && pigBoard(location+1) != stone && simpleWillHitMe(location+1))) true else false  
-    } else false
+    var m = location
+    while(m >= 1 && (pigBoard(m)==stone)) m -= 1
+    if(m == myLocation) return true
+    else if(pigBoard(m) > 0 && pigBoard(m) < stone) return false
+
+    m = location
+    while(m < pigBoard.size && (pigBoard(m)==stone)) m += 1
+    (m==myLocation)
   }
 
   def moveToSafety(location : Int) : Array[Int] = { 
@@ -69,12 +74,13 @@ class Pig(val computer : String) extends Actor {
       if(pigBoard(l) != stone ) ns += pigBoard(l)
       l += 1
     }
-    if(location <= myLocation) {
+    if(location < myLocation) {
       if(myLocation+1 < pigBoard.size && pigBoard(myLocation+1) != stone) myLocation += 1
-        else if(myLocation-1 >0 && pigBoard(myLocation-1) != stone) myLocation -= 1
-    } else {
+    } else if(location > myLocation) {
         if(myLocation-1 >0 && pigBoard(myLocation-1) != stone) myLocation -= 1
-        else if(myLocation+1 < pigBoard.size && pigBoard(myLocation+1) != stone) myLocation += 1
+    } else {
+        if(myLocation+1 < pigBoard.size && pigBoard(myLocation+1) != stone) myLocation += 1
+        else if(myLocation-1 >0 && pigBoard(myLocation-1) != stone) myLocation -= 1
     }
     ns.toSet.toArray
   }
@@ -100,6 +106,7 @@ class Pig(val computer : String) extends Actor {
     Game.printBoard(pigBoard,finalBoard)
     println("Landed on: " + landedLoc)
     val aff = affected(landedLoc).toSet
+    println("affed: " + aff.mkString(";"))
     aff.contains(myLocation)
   }
 
@@ -148,6 +155,7 @@ class Pig(val computer : String) extends Actor {
                 println("accepting BirdApproaching message")
                 seenMessages(messageId) = true
                 if(simpleWillHitMe(location)) {
+                  println("It will probably hit me! Taking evasive action.")
                   val pigsToMove = moveToSafety(location)
                   for(p <- pigsToMove) {
                     println("Sending TakeShelter")
@@ -170,12 +178,13 @@ class Pig(val computer : String) extends Actor {
                 if(me.idNumber==pigId && sheltered == false) {
                   println("accepting TakeShelter message")
                   sheltered = true
-                  if(loc <= myLocation) {
+                  if(loc < myLocation) {
+                    if(myLocation+1 < pigBoard.size && pigBoard(myLocation+1) != stone) myLocation += 1
+                  } else if(loc > myLocation) {
+                    if(myLocation-1 >0 && pigBoard(myLocation-1) != stone) myLocation -= 1
+                  } else {
                     if(myLocation+1 < pigBoard.size && pigBoard(myLocation+1) != stone) myLocation += 1
                     else if(myLocation-1 >0 && pigBoard(myLocation-1) != stone) myLocation -= 1
-                  } else {
-                    if(myLocation-1 >0 && pigBoard(myLocation-1) != stone) myLocation -= 1
-                    else if(myLocation+1 < pigBoard.size && pigBoard(myLocation+1) != stone) myLocation += 1
                   }
                 } else {
                   println("Proprogating TakeShelter message")

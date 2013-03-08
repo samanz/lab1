@@ -63,7 +63,7 @@ class Master extends Actor {
         				piggy ! SendGame(board)
         		}
         		case Where => {
-        			sender ! game.landing + rand.nextDouble.round+(-1*rand.nextDouble.round)
+        			sender ! game.landing + (Config.game.error*(rand.nextDouble.round+(-1*rand.nextDouble.round)))
         		}
         		case Hit(landing) => {
         			for(piggy <- pigToCon.values) {

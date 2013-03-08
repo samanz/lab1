@@ -41,6 +41,7 @@
   },
   "game" : {
   	"boardSize" : 3,
+  	"error" : 1,
   	"messageDelay" : 1000
   }
 }

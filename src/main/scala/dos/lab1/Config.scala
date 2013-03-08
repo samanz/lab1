@@ -11,7 +11,7 @@ class PigConfig(val name : String, val address : String, val port : Int) {
 	var connected = false
 	var idNumber = -1
 }
-class GameConfig(val size : Int, val messageDelay : Int)
+class GameConfig(val size : Int, val messageDelay : Int, val error : Int)
 class Computer(val address : String, pig : PigConfig) {
 	val pigs = ArrayBuffer[PigConfig]()
 	pigs += pig 
@@ -38,6 +38,6 @@ object Config {
 		val m = (json \ "master")
 		master = new MasterConfig( (m \ "address").values.toString,  (m \ "port").values.toString.toInt )
 		val g = (json \ "game")
-		game = new GameConfig( (g \ "boardSize").values.toString.toInt*N, (g \ "messageDelay").values.toString.toInt )
+		game = new GameConfig( (g \ "boardSize").values.toString.toInt*N, (g \ "messageDelay").values.toString.toInt, (g \ "error").values.toString.toInt  )
 	}
 }
