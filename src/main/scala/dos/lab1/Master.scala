@@ -32,6 +32,25 @@ class Master extends Actor {
 		if(connections.size == 0) new PigConfig("", "", 0)
 		else connections.last
 	}
+  
+  	def affected(location : Int) : Array[Int] = {
+  	  val stone = Config.N+1
+  	  if(location >= 0 && location < game.board.size) {
+  	    if(game.board(location) == stone) {
+  	      if(location == game.landing)
+  	        return affected(location+1) ++ affected(location-1)
+  	      else if(location > game.landing)
+  	        return affected(location+1)
+  	      else
+  	        return affected(location-1)
+  	    }
+  	    else if(game.finalBoard.values.toSet.contains(location)) {
+  	      if(game.landing > location) return Array(location) ++ affected(location-1)
+  	      else return Array(location) ++ affected(location+1)
+  	    } else return Array()
+  	  } else Array()
+  	}
+
 
 	def act() {
 		alive(Config.master.port)
@@ -76,9 +95,12 @@ class Master extends Actor {
         			game.success = numHit
         			game.done = true
         		}
-        		case Final(finalBoard) => {
-        			 for(piggy <- pigToCon.values) {
-        				piggy ! Final(finalBoard)
+        		case Final(status) => {
+        			val aff = affected(game.landing).toSet
+    				println("affed: " + aff.mkString(";"))
+        			for(p <- pigToCon) {
+        				val piggy = p._2
+        				piggy ! Final(aff.contains(game.finalBoard(p._1)))
            			}
         		}
       		}

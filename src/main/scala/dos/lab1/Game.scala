@@ -9,7 +9,7 @@ import scala.collection.mutable.HashMap
 
 case class SendGame(board : Array[Int])
 case class Hit(landing : Int)
-case class Final(finalBoard : HashMap[Int,Int])
+case class Final(status : Boolean) //finalBoard : HashMap[Int,Int])
 
 class Game(val master : Master) {
 	master.game = this
@@ -46,7 +46,7 @@ class Game(val master : Master) {
         while(updates != Config.N) Thread.sleep(1000)
         println("Lets do it!")
         Game.printBoard(board, finalBoard)
-        (master ! Final(finalBoard))
+        (master ! Final(true))
         println("Are we done yet?!")
         while(!done) Thread.sleep(1000)
     	println("Game Stats: num hit: " + success)
@@ -93,7 +93,6 @@ object Game {
     }
 
     def printBoard(board : Array[Int], fb : HashMap[Int,Int]) {
-        fb.foreach( x => println(x._1 +"=>" + x._2))
         println( board.zipWithIndex.map{ x => 
             if(x._1==Config.N+1) "[]"
             else  {

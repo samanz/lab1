@@ -34,18 +34,6 @@ class Pig(val computer : String) extends Actor {
   var numHit = 0
   var responses = 0
 
-  def willHitMe(location : Int, fromPig : Boolean = false) : Boolean = {
-    println(location)
-    println(myLocation)
-    if(location == myLocation) return true
-    if(location < 0 || location >= pigBoard.size) false
-    if(pigBoard(location) == stone) {
-      if( (location-1 >= 0 && willHitMe(location-1)) || (location+1 < pigBoard.size && willHitMe(location+1))) true else false  
-    } else if(pigBoard(location) >= 0 && !fromPig) {
-      if(location+1 == pigBoard.size) false else willHitMe(location+1, true)
-    } else false
-  }
-
   def simpleWillHitMe(location : Int) : Boolean = {
     if(location < 0 || location >= pigBoard.size) return false
     if(location == myLocation) return true
@@ -83,31 +71,6 @@ class Pig(val computer : String) extends Actor {
         else if(myLocation-1 >0 && pigBoard(myLocation-1) != stone) myLocation -= 1
     }
     ns.toSet.toArray
-  }
-
-  def affected(location : Int) : Array[Int] = {
-    if(location >= 0 && location < pigBoard.size) {
-      if(pigBoard(location) == stone) {
-        if(location == landedLoc)
-          return affected(location+1) ++ affected(location-1)
-        else if(location > landedLoc)
-          return affected(location+1)
-        else
-          return affected(location-1)
-      }
-      else if(finalBoard.values.toSet.contains(location)) {
-        if(landedLoc > location) return Array(location) ++ affected(location-1)
-        else return Array(location) ++ affected(location+1)
-      } else return Array()
-    } else Array()
-  }
-
-  def wasIHit() : Boolean = {
-    Game.printBoard(pigBoard,finalBoard)
-    println("Landed on: " + landedLoc)
-    val aff = affected(landedLoc).toSet
-    println("affed: " + aff.mkString(";"))
-    aff.contains(myLocation)
   }
 
 	def act() {
@@ -161,22 +124,28 @@ class Pig(val computer : String) extends Actor {
                     println("Sending TakeShelter")
                     val messageId = UUID.randomUUID
                     seenMessages(messageId) = true
-                    Scheduler.schedule( { Actor.actor { neighbor ! TakeShelter(p, location, messageId) }; () }, Config.game.messageDelay)
-                    Scheduler.schedule( { Actor.actor { next ! TakeShelter(p, location, messageId) }; () }, Config.game.messageDelay)
+                    Actor.actor { 
+                      Thread.sleep(Config.game.messageDelay)
+                      neighbor ! TakeShelter(p, location, messageId)
+                      next ! TakeShelter(p, location, messageId)
+                    }
                   }
                 }
         			 if(hopcount > 1) {
                  println("Proprogating BirdApproaching")
-						     Scheduler.schedule( { Actor.actor { neighbor ! BirdApproaching(location, messageId, hopcount-1) }; () }, Config.game.messageDelay)
-        			   Scheduler.schedule( { Actor.actor { next ! BirdApproaching(location, messageId, hopcount-1) }; () }, Config.game.messageDelay)
+						     Actor.actor { 
+                  Thread.sleep(Config.game.messageDelay)
+                  neighbor ! BirdApproaching(location, messageId, hopcount-1) 
+        			    next ! BirdApproaching(location, messageId, hopcount-1)
                 }
               }
         		}
+          }
             case TakeShelter(pigId, loc, messageId) => {
               if(!seenMessages.contains(messageId)) {
                 seenMessages(messageId) = true
                 if(me.idNumber==pigId && sheltered == false) {
-                  println("accepting TakeShelter message")
+                  println("accepting TakeShelter message, attempting to take evasive action.")
                   sheltered = true
                   if(loc < myLocation) {
                     if(myLocation+1 < pigBoard.size && pigBoard(myLocation+1) != stone) myLocation += 1
@@ -187,23 +156,28 @@ class Pig(val computer : String) extends Actor {
                     else if(myLocation-1 >0 && pigBoard(myLocation-1) != stone) myLocation -= 1
                   }
                 } else {
-                  println("Proprogating TakeShelter message")
-                  Scheduler.schedule( { Actor.actor { neighbor ! TakeShelter(pigId, loc, messageId) }; () }, Config.game.messageDelay)
-                  Scheduler.schedule( { Actor.actor { next ! TakeShelter(pigId, loc, messageId) }; () }, Config.game.messageDelay)
+                  Actor.actor { 
+                    Thread.sleep(Config.game.messageDelay)
+                    neighbor ! TakeShelter(pigId, loc, messageId)
+                    next ! TakeShelter(pigId, loc, messageId)
+                  }
                 }
               }
             }
-            case Final(bd) => {
+            case Final(status) => {
               println("And the final word is?")
-              finalBoard = bd
-              statusHit = wasIHit()
+              //finalBoard = bd
+              statusHit = status//wasIHit()
               if(statusHit) println("Im hit!") else println("I'm safe!")
               if(isFirst) {
                 val messageId = UUID.randomUUID
                 seenMessages(messageId) = true
                 println("Querying statusAll")
-                Scheduler.schedule( { Actor.actor { neighbor ! StatusAll(Config.N/2+1, Array(me.idNumber), messageId) }; () }, Config.game.messageDelay)
-                Scheduler.schedule( { Actor.actor { next ! StatusAll(Config.N/2+1, Array(me.idNumber), messageId) }; () }, Config.game.messageDelay)
+                Actor.actor { 
+                  Thread.sleep(Config.game.messageDelay)
+                  neighbor ! StatusAll(Config.N/2+1, Array(me.idNumber), messageId)
+                  next ! StatusAll(Config.N/2+1, Array(me.idNumber), messageId)
+                }
               }
             }
             case WasHit(pigId, status, trav) => {
@@ -217,10 +191,16 @@ class Pig(val computer : String) extends Actor {
                 }
               } else {
                 if(pConfig.idNumber==trav.last) {
-                  Scheduler.schedule( { Actor.actor { neighbor ! WasHit(pigId, status, trav.take(trav.length-1)) }; () }, Config.game.messageDelay)
+                  Actor.actor { 
+                    Thread.sleep(Config.game.messageDelay)
+                    neighbor ! WasHit(pigId, status, trav.take(trav.length-1))
+                  }
                 }
                 if(nConfig.idNumber==trav.last) {
-                  Scheduler.schedule( { Actor.actor { next ! WasHit(pigId, status, trav.take(trav.length-1)) }; () }, Config.game.messageDelay)
+                  Actor.actor { 
+                    Thread.sleep(Config.game.messageDelay)
+                    next ! WasHit(pigId, status, trav.take(trav.length-1))
+                  }
                 }
               }
             }
@@ -230,13 +210,22 @@ class Pig(val computer : String) extends Actor {
                 println("accepting StatusAll message")
                 seenMessages(messageId) = true
                 if(pConfig.idNumber==trav.last) {
-                  Scheduler.schedule( { Actor.actor { neighbor ! WasHit(me.idNumber, statusHit, trav.take(trav.length-1)) }; () }, Config.game.messageDelay)
+                  Actor.actor {
+                    Thread.sleep(Config.game.messageDelay)
+                    neighbor ! WasHit(me.idNumber, statusHit, trav.take(trav.length-1))
+                  }
                 }
                 if(nConfig.idNumber==trav.last) {
-                  Scheduler.schedule( { Actor.actor { next ! WasHit(me.idNumber, statusHit, trav.take(trav.length-1)) }; () }, Config.game.messageDelay)
+                  Actor.actor { 
+                    Thread.sleep(Config.game.messageDelay)
+                    next ! WasHit(me.idNumber, statusHit, trav.take(trav.length-1)) 
+                  }
                 }
-                Scheduler.schedule( { Actor.actor { neighbor ! StatusAll(hopcount-1, trav ++ Array(me.idNumber), messageId) }; () }, Config.game.messageDelay)
-                Scheduler.schedule( { Actor.actor { next ! StatusAll(hopcount-1, trav ++ Array(me.idNumber), messageId) }; () }, Config.game.messageDelay)
+                Actor.actor { 
+                  Thread.sleep(Config.game.messageDelay)
+                  neighbor ! StatusAll(hopcount-1, trav ++ Array(me.idNumber), messageId) 
+                  next ! StatusAll(hopcount-1, trav ++ Array(me.idNumber), messageId)
+                }
               }
             }
         		case SendGame(board) => {
@@ -260,8 +249,11 @@ class Pig(val computer : String) extends Actor {
         				println("Proprogating")
                 val messageId = UUID.randomUUID
                 //seenMessages(messageId) = true
-						    Scheduler.schedule( { Actor.actor { neighbor ! BirdApproaching(hitLocation, messageId, Config.N/2+1) }; () }, Config.game.messageDelay)
-        			  Scheduler.schedule( { Actor.actor { next ! BirdApproaching(hitLocation, messageId, Config.N/2+1) }; () }, Config.game.messageDelay)
+						    Actor.actor { 
+                  Thread.sleep(Config.game.messageDelay)
+                  neighbor ! BirdApproaching(hitLocation, messageId, Config.N/2+1) 
+                  next ! BirdApproaching(hitLocation, messageId, Config.N/2+1)
+                }
               }
         		}
       		}
@@ -276,16 +268,4 @@ object Pig {
 		val pig = new Pig(args(1))
 		pig.start()
 	}
-}
-
-object Scheduler {
-  import java.util.concurrent.Executors
-  import scala.compat.Platform
-  import java.util.concurrent.TimeUnit
-  private lazy val sched = Executors.newSingleThreadScheduledExecutor();
-  def schedule(f: => Unit, time: Long) {
-    sched.schedule(new Runnable {
-      def run = f
-    }, time , TimeUnit.MILLISECONDS);
-  }
 }
