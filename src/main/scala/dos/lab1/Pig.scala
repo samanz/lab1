@@ -7,33 +7,87 @@ import scala.actors.remote.RemoteActor._
 import java.util.UUID
 import scala.collection.mutable.{ArrayBuffer, HashMap}
 
-
+/** Actor message: Tells master that it is ready to be connected to **/
 case object Ready
+/** Actor message: Asks the master to help get information about estimated location of bird hitting **/
 case object Where
+/** Actor message: requests neighbor to connect back to current pig to create bidirectional ring
+  *
+  * @param pig The configuration information so the pig can connect to the current actor
+  */
 case class ForwardConnect(pig : PigConfig)
+/** Actor message: floods information to P2P network with information about estimated location bird lands
+  * 
+  * @param position The location the bird might land
+  * @param messageId The UUID of the message
+  * @param hopcount The number of hops allowed left to be made in the p2p network
+  */
 case class BirdApproaching(position : Int, messageId : UUID, hopcount:Int)
-case class Move(position : Int, hopcount:Int)
+/** Actor message: floods information to P2P message indicating a certain pig should move away from bird
+  *
+  * @param pigId The id of the pig that will recieve the message
+  * @param loc The location that the pig should move away from
+  * @param messageId The UUID of the message
+*/
 case class TakeShelter(pigId : Int, loc : Int, messageId : UUID)
+/** Actor message: floods the P2P network with requesting the status from all the pigs
+  * 
+  * @param hopcount The number of hops allowed left to be made in the p2p network
+  * @param trav The ids indicating the traversal of the message through the p2p network so it can be reversed by the reply message
+  * @param messageId The UUID of the message
+  */
 case class StatusAll(hopcount : Int, trav : Array[Int], messageId : UUID)
+/** Actor message: Replies to StatusAll with information about the status of the pigs
+  * 
+  * @param pigId The id of the pig replying
+  * @param status The hit status of the pig replying
+  * @param trav The current level of the reverse traversal through the P2P network
+  */
 case class WasHit(pigId : Int, status : Boolean, trav : Array[Int])
+/** Actor message: Tell the master that the round has ended and the amount of pigs that were hit in the round
+  *
+  * @param numHit The number of pigs hit during round
+  */
 case class Done(numHit : Int)
 
+/** A Pig class. This class is a scala remote actor that sends information on the pig-to-pig network to avoid being hit by birds sent by game.
+  *
+  * @constructor create a new pig, connect to the master, and try connect to the pig before it on the ring.
+  * @param computer the hostname of the computer the process is started on
+  */
 class Pig(val computer : String) extends Actor {
+  /** The current game state as seen by an individual pig **/
 	var pigBoard = new Array[Int](Config.game.size)
+  /** The configuration information of the pig before in the ring **/
 	var pConfig : PigConfig = null
+  /** The configuration information of the pig after in the ring **/
 	var nConfig : PigConfig = null
+  /** The configuration information of the current pig **/
 	var me : PigConfig = null
-	var stone = Config.N+1
+  /** The number that is a stone column on the map **/
+	val stone = Config.N+1
+  /** Current location of the pig on game map **/
 	var myLocation = 0
+  /** Contains unique IDs of messages seen already on the network **/
   val seenMessages = new HashMap[UUID, Boolean]()
+  /** Stores the information of if a pig already took shelter **/
   var sheltered = false
+  /** Stores the information of if a pig has been hit by a bird **/
   var statusHit = false
+  /** Stores the information of if a pig is the first one on the map **/
   var isFirst = false
-  var finalBoard : HashMap[Int, Int] = null
+  /** The location the bird is actually going to hit **/
   var landedLoc : Int = 0
+  /** The number of pigs hit, used by first pig to update master about state. **/
   var numHit = 0
+  /** The number of statusAll responses the first pig has seen **/
   var responses = 0
 
+  /** Determines if the estimated location of bird hitting will lead to this pig being the primary one hit
+    *
+    * @param location The location that the bird is estimated hitting
+    * @return boolean true if pig is primary pig to be hit by estimated bird
+  */
   def simpleWillHitMe(location : Int) : Boolean = {
     if(location < 0 || location >= pigBoard.size) return false
     if(location == myLocation) return true
@@ -47,6 +101,12 @@ class Pig(val computer : String) extends Actor {
     (m==myLocation)
   }
 
+
+  /** Will both move the pig to safety based on the estimated location of bird landing, and gather information about neighbors that should be told to move
+    *
+    * @param location The location that the bird is estimated hitting
+    * @return array of neighbor ids that should be told to move
+  */
   def moveToSafety(location : Int) : Array[Int] = { 
     val neighbors = ArrayBuffer[Int]()
     var ns = ArrayBuffer[Int]()
@@ -166,7 +226,6 @@ class Pig(val computer : String) extends Actor {
             }
             case Final(status) => {
               println("And the final word is?")
-              //finalBoard = bd
               statusHit = status//wasIHit()
               if(statusHit) println("Im hit!") else println("I'm safe!")
               if(isFirst) {
@@ -232,7 +291,6 @@ class Pig(val computer : String) extends Actor {
               sheltered = false
               statusHit = false
         			pigBoard = board
-              finalBoard = null
               landedLoc = 0
         			Game.printBoard(pigBoard)
         			var firstPig = 0

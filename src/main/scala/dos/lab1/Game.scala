@@ -7,24 +7,45 @@ import scala.actors.remote.RemoteActor._
 import scala.util.Random
 import scala.collection.mutable.HashMap
 
+/** Actor message: Sends board information to Master and then to the pigs 
+  * 
+  * @param board The representation of the world
+  */
 case class SendGame(board : Array[Int])
+/** Actor message: Sends the hit location to the master and then to the pigs
+  * @param landing The final landing information of the bird
+*/
 case class Hit(landing : Int)
-case class Final(status : Boolean) //finalBoard : HashMap[Int,Int])
+/** Actor message: Tells the master to send information about whether a pig is hit by bird. Master will use this message to send that information. 
+  * @param status The status of the pigs being hit or not by the bird
+  */
+case class Final(status : Boolean)
 
+/** Game class. Runs the game, creates the board, stores statistics.
+  * 
+  * @param master The master that will send messages to P2P network from game
+  */
 class Game(val master : Master) {
 	master.game = this
     var updates = 0
 	val rand = new Random
+    /** The state of the world **/
 	val board = new Array[Int](Config.game.size)
+    /** The final state of the world, as map from birdIds to locations **/
     val finalBoard = new HashMap[Int, Int]()
+    /** The final landing location of a bird. **/
 	var landing = -1
     while(!master.ready) { Thread.sleep(1000) }
     println("Starting game")
     var success = 0
     var done = false
 
+    /** The number of rounds of games played **/
     var round = 0
+
+    /** Has the game ended yet? **/
     var ended = false
+
     while(true) {
     	round += 1
         updates = 0
@@ -52,6 +73,7 @@ class Game(val master : Master) {
     	println("Game Stats: num hit: " + success)
     }
 
+    /** Randomize game creates a random setup of pigs on the board and stone columns around and next to pigs **/
     def randomizeGame() {
 		(0 until board.length).foreach( board(_) = 0 )    	
 		val stone = Config.N+1
@@ -76,6 +98,7 @@ class Game(val master : Master) {
     	}
     }
 
+    /** Creates final board from board information **/
     def loadFinalBoard() {
         for(i <- 0 until board.size) {
             if(board(i) < Config.N+1 && board(i) > 0) finalBoard(board(i)) = i
@@ -84,6 +107,7 @@ class Game(val master : Master) {
 }
 
 object Game {
+    /** Prints the board to stout **/
 	def printBoard(board : Array[Int]) {
     	println( board.map{ x => 
     		if(x==0) "."
@@ -92,6 +116,7 @@ object Game {
     		}.mkString("") )
     }
 
+    /** Prints the final version of the board to stout **/
     def printBoard(board : Array[Int], fb : HashMap[Int,Int]) {
         println( board.zipWithIndex.map{ x => 
             if(x._1==Config.N+1) "[]"
