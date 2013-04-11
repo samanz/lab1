@@ -46,6 +46,9 @@ class Game(val master : Master) {
     /** Has the game ended yet? **/
     var ended = false
 
+    /** Num hit total is accumulator for number total hit all time **/
+    var numHitTotal = 0
+
     while(true) {
     	round += 1
         updates = 0
@@ -71,6 +74,8 @@ class Game(val master : Master) {
         println("Are we done yet?!")
         while(!done) Thread.sleep(1000)
     	println("Game Stats: num hit: " + success)
+        numHitTotal += success
+        println("Total hit all time: " + numHitTotal)
     }
 
     /** Randomize game creates a random setup of pigs on the board and stone columns around and next to pigs **/

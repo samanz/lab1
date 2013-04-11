@@ -1,4 +1,4 @@
-import AssemblyKeys._ // put this at the top of the file
+import com.typesafe.sbt.SbtStartScript
 
 name := "lab1"
 
@@ -12,7 +12,9 @@ libraryDependencies += "net.liftweb" %% "lift-json" % "2.4"
 
 resolvers += "Typesafe Repo" at "http://repo.typesafe.com/typesafe/releases/"
 
-seq(assemblySettings: _*)
+seq(SbtStartScript.startScriptForClassesSettings: _*)
+
+//seq(assemblySettings: _*)
 
 fork in run := true
 
